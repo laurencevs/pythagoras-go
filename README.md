@@ -50,4 +50,4 @@ A [congruent number](https://en.wikipedia.org/wiki/Congruent_number) is a number
 
 1, 2, 3, and 4 are not congruent numbers, but 5, 6, and 7 are. As of January 2025, the problem of which numbers are congruent numbers is unsolved.
 
-It turns out that finding rational Pythagorean triangles of area $n$ is equivalent to finding rational points with $y \neq 0$ on the [elliptic curve](https://en.wikipedia.org/wiki/Elliptic_curve) $E_n$. Thus, given a rational Pythagorean triangle of area $n$, we can use the [elliptic curve group law](https://en.wikipedia.org/wiki/Elliptic_curve#The_group_law) to find arbitrarily many other Pythagorean triangles of area $n$.
+It turns out that finding rational Pythagorean triangles of area $n$ is equivalent to finding rational points with $y \neq 0$ on the [elliptic curve](https://en.wikipedia.org/wiki/Elliptic_curve) $$E_n: y^2 = x^3 - n^2 x.$$ Thus, given a rational Pythagorean triangle of area $n$, we can convert it to a point on $E_n$ and then use the [elliptic curve group law](https://en.wikipedia.org/wiki/Elliptic_curve#The_group_law) to find arbitrarily many other Pythagorean triangles of area $n$.
