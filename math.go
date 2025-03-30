@@ -29,11 +29,10 @@ func intSqrt(n uint) (uint, bool) {
 	x = uint(2) << bl
 	for {
 		y = (x + n/x) / 2
-		if y < x {
-			x = y
-		} else {
+		if x <= y {
 			return x, x*x == n
 		}
+		x = y
 	}
 }
 

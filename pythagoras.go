@@ -75,11 +75,13 @@ func initialPointSearch(n int, timeout <-chan time.Time) []rationalPoint {
 				if (u%2 == 1 && v%2 == 1) || gcd(u, v) > 1 {
 					continue
 				}
-				if s, ok := intSqrt(uint((u*u - v*v) * u * v * n)); ok {
-					triples = append(triples, primitiveTriple{u, v, s}.ToPoint(n))
-					if timeout == nil {
-						return triples
-					}
+				s, ok := intSqrt(uint((u*u - v*v) * u * v * n))
+				if !ok {
+					continue
+				}
+				triples = append(triples, primitiveTriple{u, v, s}.ToPoint(n))
+				if timeout == nil {
+					return triples
 				}
 			}
 		}

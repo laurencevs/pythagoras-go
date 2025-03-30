@@ -32,6 +32,8 @@ func main() {
 
 	E := weierstrassCurve{int64(-n * n), 0}
 
+	// Multiply the initial points and compute all linear combinations thereof,
+	// recording seen values for de-duplication.
 	var points []rationalPoint
 	seen := make(valuesSeen[rationalPoint])
 	for _, c := range initialPoints {
@@ -56,6 +58,8 @@ func main() {
 		points = append(points, newPoints...)
 	}
 
+	// Convert points to Pythagorean triples, again with de-duplication.
+	// Multiple points can correspond to the same triple.
 	triplesSeen := make(valuesSeen[rationalTriple])
 	var uniqueTriples []rationalTriple
 	for _, P := range points {
