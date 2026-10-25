@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"math/big"
 	"time"
+
+	"github.com/laurencevs/pythagoras-go/math"
 )
 
 type rationalTriple struct {
@@ -12,6 +14,13 @@ type rationalTriple struct {
 
 func (t rationalTriple) String() string {
 	return fmt.Sprintf("(%s, %s, %s)", t.A.RatString(), t.B.RatString(), t.C.RatString())
+}
+
+func (t rationalTriple) Scale(factor int) {
+	factorRat := big.NewRat(int64(factor), 1)
+	t.A.Mul(t.A, factorRat)
+	t.B.Mul(t.B, factorRat)
+	t.C.Mul(t.C, factorRat)
 }
 
 func (t rationalTriple) ToPoint(n int) rationalPoint {
@@ -75,7 +84,7 @@ func initialPointSearch(n int, timeout <-chan time.Time) []rationalPoint {
 				if (u%2 == 1 && v%2 == 1) || gcd(u, v) > 1 {
 					continue
 				}
-				s, ok := intSqrt(uint((u*u - v*v) * u * v * n))
+				s, ok := math.IntSqrt(uint((u*u - v*v) * u * v * n))
 				if !ok {
 					continue
 				}

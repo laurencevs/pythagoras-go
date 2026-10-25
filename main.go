@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/laurencevs/pythagoras-go/math"
 )
 
 var timeoutDuration = flag.Duration("timeout", 0, "The timeout length for the initial point search. If set to 0, the program will keep searching until it finds one point.")
@@ -21,6 +23,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	nSquareFree, nSquaredFactor := math.GetSquarefree(n)
 
 	fmt.Printf("Finding rational Pythagorean triangles with area %d\n", n)
 
@@ -28,9 +31,9 @@ func main() {
 	if *timeoutDuration > 0 {
 		timeout = time.After(*timeoutDuration)
 	}
-	initialPoints := initialPointSearch(n, timeout)
+	initialPoints := initialPointSearch(nSquareFree, timeout)
 
-	E := weierstrassCurve{int64(-n * n), 0}
+	E := weierstrassCurve{int64(-nSquareFree * nSquareFree), 0}
 
 	// Multiply the initial points and compute all linear combinations thereof,
 	// recording seen values for de-duplication.
@@ -63,7 +66,8 @@ func main() {
 	triplesSeen := make(valuesSeen[rationalTriple])
 	var uniqueTriples []rationalTriple
 	for _, P := range points {
-		t := P.ToTriple(n)
+		t := P.ToTriple(nSquareFree)
+		t.Scale(nSquaredFactor)
 		if !triplesSeen.contains(t) {
 			uniqueTriples = append(uniqueTriples, t)
 		}
