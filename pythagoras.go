@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"math/big"
-	"time"
 
 	"github.com/laurencevs/pythagoras-go/math"
 )
@@ -73,25 +73,27 @@ func (t primitiveTriple) ToPoint(n int) rationalPoint {
 	return r.ToPoint(n)
 }
 
-func initialPointSearch(n int, timeout <-chan time.Time) []rationalPoint {
-	var triples []rationalPoint
+func initialPointSearch(ctx context.Context, n int, out chan<- rationalPoint) {
 	for u := 1; ; u++ {
 		select {
-		case <-timeout:
-			return triples
+		case <-ctx.Done():
+			return
 		default:
-			for v := 1; v < u; v++ {
-				if (u%2 == 1 && v%2 == 1) || gcd(u, v) > 1 {
-					continue
-				}
-				s, ok := math.IntSqrt(uint((u*u - v*v) * u * v * n))
-				if !ok {
-					continue
-				}
-				triples = append(triples, primitiveTriple{u, v, s}.ToPoint(n))
-				if timeout == nil {
-					return triples
-				}
+		}
+
+		for v := 1; v < u; v++ {
+			if (u%2 == 1 && v%2 == 1) || gcd(u, v) > 1 {
+				continue
+			}
+			s, ok := math.IntSqrt(uint((u*u - v*v) * u * v * n))
+			if !ok {
+				continue
+			}
+
+			select {
+			case <-ctx.Done():
+				return
+			case out <- primitiveTriple{u, v, s}.ToPoint(n):
 			}
 		}
 	}

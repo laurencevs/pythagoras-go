@@ -2,10 +2,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/laurencevs/pythagoras-go/math"
@@ -27,11 +29,7 @@ func main() {
 
 	fmt.Printf("Finding rational Pythagorean triangles with area %d\n", n)
 
-	var timeout <-chan time.Time
-	if *timeoutDuration > 0 {
-		timeout = time.After(*timeoutDuration)
-	}
-	initialPoints := initialPointSearch(nSquareFree, timeout)
+	initialPoints := runInitialSearch(nSquareFree, *timeoutDuration)
 
 	E := weierstrassCurve{int64(-nSquareFree * nSquareFree), 0}
 
@@ -109,4 +107,49 @@ func (ps valuesSeen[T]) add(p T) {
 func (ps valuesSeen[T]) contains(p T) bool {
 	_, ok := ps[p.String()]
 	return ok
+}
+
+func runInitialSearch(n int, timeout time.Duration) []rationalPoint {
+	returnFirstPoint := timeout == 0
+
+	var searchCtx context.Context
+	var endSearch context.CancelFunc
+
+	if timeout > 0 {
+		searchCtx, endSearch = context.WithTimeout(context.Background(), timeout)
+	} else {
+		searchCtx, endSearch = context.WithCancel(context.Background())
+	}
+	defer endSearch()
+
+	initialPointsCh := make(chan rationalPoint)
+	defer close(initialPointsCh)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	wgDone := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(wgDone)
+	}()
+	go func() {
+		initialPointSearch(searchCtx, n, initialPointsCh)
+		wg.Done()
+	}()
+
+	var initialPoints []rationalPoint
+outer:
+	for {
+		select {
+		case point := <-initialPointsCh:
+			initialPoints = append(initialPoints, point)
+			if returnFirstPoint {
+				endSearch()
+			}
+		case <-wgDone:
+			break outer
+		}
+	}
+
+	return initialPoints
 }
