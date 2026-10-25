@@ -13,20 +13,20 @@ type TunnellResult struct {
 }
 
 // n must be positive and square-free
-func RunTunnellCheck(_ context.Context, n int, out chan<- TunnellResult) {
+func RunTunnellCheck(_ context.Context, n int64, out chan<- TunnellResult) {
 	// TODO: use context to exit early
 	out <- CheckTunnell(n)
 }
 
 // n must be positive and square-free
-func CheckTunnell(n int) TunnellResult {
+func CheckTunnell(n int64) TunnellResult {
 	if n%2 == 0 {
 		return checkTunnellEven(n)
 	}
 	return checkTunnellOdd(n)
 }
 
-func checkTunnellEven(n int) TunnellResult {
+func checkTunnellEven(n int64) TunnellResult {
 	c := computeTunnellCount(n, 2, 8, 64)
 	d := computeTunnellCount(n, 2, 8, 16)
 	return TunnellResult{
@@ -36,7 +36,7 @@ func checkTunnellEven(n int) TunnellResult {
 	}
 }
 
-func checkTunnellOdd(n int) TunnellResult {
+func checkTunnellOdd(n int64) TunnellResult {
 	a := computeTunnellCount(n, 1, 2, 32)
 	b := computeTunnellCount(n, 1, 2, 8)
 	return TunnellResult{
@@ -46,17 +46,17 @@ func checkTunnellOdd(n int) TunnellResult {
 	}
 }
 
-func computeTunnellCount(n, xc, yc, zc int) int {
+func computeTunnellCount(n, xc, yc, zc int64) int {
 	total := 0
-	for x := 0; xc*x*x <= n; x++ {
+	for x := int64(0); xc*x*x <= n; x++ {
 		xContrib := xc * x * x
-		for y := 0; yc*y*y <= n-xContrib; y++ {
+		for y := int64(0); yc*y*y <= n-xContrib; y++ {
 			yContrib := yc * y * y
-			z, ok := math.IntSqrt(uint((n - xContrib - yContrib) / zc))
+			z, ok := math.IntSqrt(uint64((n - xContrib - yContrib) / zc))
 			if !ok {
 				continue
 			}
-			if xContrib+yContrib+zc*int(z)*int(z) != n {
+			if xContrib+yContrib+zc*int64(z)*int64(z) != n {
 				continue
 			}
 			numSolutions := 1

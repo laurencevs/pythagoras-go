@@ -1,12 +1,12 @@
 package math
 
-func IntSqrt(n uint) (uint, bool) {
+func IntSqrt[T ~uint | ~uint64](n T) (T, bool) {
 	if n <= 1 {
 		return n, true
 	}
 	bl := bitLength(n) / 2
-	var x, y uint
-	x = uint(2) << bl
+	var x, y T
+	x = T(2) << bl
 	for {
 		y = (x + n/x) / 2
 		if x <= y {
@@ -16,8 +16,13 @@ func IntSqrt(n uint) (uint, bool) {
 	}
 }
 
-func bitLength(n uint) uint {
-	l := uint(1)
+func IntFloorSqrt[T ~uint | ~uint64](n T) T {
+	sqrt, _ := IntSqrt(n)
+	return sqrt
+}
+
+func bitLength[T ~uint | ~uint64](n T) T {
+	l := T(1)
 	for n > 1 {
 		l++
 		n >>= 1

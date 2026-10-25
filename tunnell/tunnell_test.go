@@ -3,7 +3,7 @@ package tunnell
 import "testing"
 
 type knownResult struct {
-	n     int
+	n     int64
 	valid bool
 }
 

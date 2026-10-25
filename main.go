@@ -28,14 +28,20 @@ func main() {
 	}
 	nSquareFree, nSquaredFactor := math.GetSquarefree(n)
 
-	fmt.Printf("Finding rational Pythagorean triangles with area %d\n", n)
+	fmt.Printf("Finding rational Pythagorean triangles with area %d (square-free part %d)\n", n, nSquareFree)
 
-	initialPoints := runInitialSearch(nSquareFree, *timeoutDuration)
+	initialPoints := runInitialSearch(int64(nSquareFree), *timeoutDuration)
 	if len(initialPoints) == 0 {
 		return
 	}
 
 	E := weierstrassCurve{int64(-nSquareFree * nSquareFree), 0}
+
+	for _, p := range initialPoints {
+		if !E.Contains(p) {
+			panic(fmt.Sprintf("fatal: initial point %v is not on curve %v", p, E))
+		}
+	}
 
 	// Multiply the initial points and compute all linear combinations thereof,
 	// recording seen values for de-duplication.
@@ -113,7 +119,7 @@ func (ps valuesSeen[T]) contains(p T) bool {
 	return ok
 }
 
-func runInitialSearch(n int, timeout time.Duration) []rationalPoint {
+func runInitialSearch(n int64, timeout time.Duration) []rationalPoint {
 	returnFirstPoint := timeout == 0
 
 	var searchCtx context.Context
