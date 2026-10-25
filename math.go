@@ -1,6 +1,6 @@
 package main
 
-func gcd(a, b int) int {
+func gcd[T ~int | ~int64](a, b T) T {
 	if abs(a) < abs(b) {
 		a, b = b, a
 	}
@@ -13,7 +13,7 @@ func gcd(a, b int) int {
 	return a
 }
 
-func abs(n int) int {
+func abs[T ~int | ~int64](n T) T {
 	if n < 0 {
 		return -n
 	}

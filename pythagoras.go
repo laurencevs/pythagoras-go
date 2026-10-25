@@ -60,33 +60,51 @@ func (p rationalPoint) ToTriple(n int) rationalTriple {
 //
 // are the side lengths of a rational Pythagorean triangle of area n.
 type primitiveTriple struct {
-	u, v int
-	sqrt uint
+	u, v int64
+	sqrt *big.Int
 }
 
 func (t primitiveTriple) ToPoint(n int) rationalPoint {
+	var a, b, c big.Rat
+
+	nDivSqrt := new(big.Rat)
+	nDivSqrt.SetInt64(int64(n))
+	nDivSqrt.Quo(nDivSqrt, new(big.Rat).SetInt(t.sqrt))
+
+	a.SetInt64(t.u*t.u-t.v*t.v).Mul(&a, nDivSqrt)
+	b.SetInt64(2*t.u*t.v).Mul(&b, nDivSqrt)
+	c.SetInt64(t.u*t.u+t.v*t.v).Mul(&c, nDivSqrt)
+
 	r := rationalTriple{
-		A: big.NewRat(int64((t.u*t.u-t.v*t.v)*n), int64(t.sqrt)),
-		B: big.NewRat(int64(2*t.u*t.v*n), int64(t.sqrt)),
-		C: big.NewRat(int64((t.u*t.u+t.v*t.v)*n), int64(t.sqrt)),
+		A: &a,
+		B: &b,
+		C: &c,
 	}
 	return r.ToPoint(n)
 }
 
+const maxInt = int64((^uint64(0)) >> 1)
+
+var sqrtMaxInt, _ = math.IntSqrt(uint(maxInt))
+
 func initialPointSearch(ctx context.Context, n int, out chan<- rationalPoint) {
-	for u := 1; ; u++ {
+	for u := int64(1); u < int64(sqrtMaxInt/2); u++ {
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
 
-		for v := 1; v < u; v++ {
+		for v := int64(1); v < u; v++ {
 			if (u%2 == 1 && v%2 == 1) || gcd(u, v) > 1 {
 				continue
 			}
-			s, ok := math.IntSqrt(uint((u*u - v*v) * u * v * n))
-			if !ok {
+			s2 := big.NewInt(int64(u*u - v*v))
+			s2.Mul(s2, big.NewInt(int64(u*v)))
+			s2.Mul(s2, big.NewInt(int64(n)))
+			s := new(big.Int).Sqrt(s2)
+
+			if new(big.Int).Mul(s, s).Cmp(s2) != 0 {
 				continue
 			}
 
