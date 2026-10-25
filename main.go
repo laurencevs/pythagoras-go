@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/laurencevs/pythagoras-go/math"
+	"github.com/laurencevs/pythagoras-go/tunnell"
 )
 
 var timeoutDuration = flag.Duration("timeout", 0, "The timeout length for the initial point search. If set to 0, the program will keep searching until it finds one point.")
@@ -30,6 +31,9 @@ func main() {
 	fmt.Printf("Finding rational Pythagorean triangles with area %d\n", n)
 
 	initialPoints := runInitialSearch(nSquareFree, *timeoutDuration)
+	if len(initialPoints) == 0 {
+		return
+	}
 
 	E := weierstrassCurve{int64(-nSquareFree * nSquareFree), 0}
 
@@ -124,9 +128,11 @@ func runInitialSearch(n int, timeout time.Duration) []rationalPoint {
 
 	initialPointsCh := make(chan rationalPoint)
 	defer close(initialPointsCh)
+	tunnellResultCh := make(chan tunnell.TunnellResult)
+	defer close(tunnellResultCh)
 
 	var wg sync.WaitGroup
-	wg.Add(1)
+	wg.Add(2)
 	wgDone := make(chan struct{})
 	go func() {
 		wg.Wait()
@@ -134,6 +140,10 @@ func runInitialSearch(n int, timeout time.Duration) []rationalPoint {
 	}()
 	go func() {
 		initialPointSearch(searchCtx, n, initialPointsCh)
+		wg.Done()
+	}()
+	go func() {
+		tunnell.RunTunnellCheck(context.TODO(), n, tunnellResultCh)
 		wg.Done()
 	}()
 
@@ -144,6 +154,13 @@ outer:
 		case point := <-initialPointsCh:
 			initialPoints = append(initialPoints, point)
 			if returnFirstPoint {
+				endSearch()
+			}
+		case tunnellResult := <-tunnellResultCh:
+			if tunnellResult.Valid {
+				fmt.Println("Tunnell's criterion passed, expect some triangles")
+			} else {
+				fmt.Printf("Tunnell's criterion failed (counts %d, %d), ending search\n", tunnellResult.AC, tunnellResult.BD)
 				endSearch()
 			}
 		case <-wgDone:
