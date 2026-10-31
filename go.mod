@@ -1,3 +1,3 @@
 module github.com/laurencevs/pythagoras-go
 
-go 1.23.4
+go 1.27
