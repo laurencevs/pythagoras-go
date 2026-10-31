@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/laurencevs/pythagoras-go/curve"
+	"github.com/laurencevs/pythagoras-go/descent"
 	"github.com/laurencevs/pythagoras-go/math"
 	"github.com/laurencevs/pythagoras-go/tunnell"
 )
@@ -26,66 +28,19 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	nSquareFree, nSquaredFactor := math.GetSquarefree(n)
 
-	fmt.Printf("Finding rational Pythagorean triangles with area %d (square-free part %d)\n", n, nSquareFree)
-
-	initialPoints := runInitialSearch(int64(nSquareFree), *timeoutDuration)
-	if len(initialPoints) == 0 {
+	uniqueTriples := findRationalTrianglesOfArea(n, *timeoutDuration, *maxCoeff)
+	if len(uniqueTriples) == 0 {
 		return
-	}
-
-	E := weierstrassCurve{int64(-nSquareFree * nSquareFree), 0}
-
-	for _, p := range initialPoints {
-		if !E.Contains(p) {
-			panic(fmt.Sprintf("fatal: initial point %v is not on curve %v", p, E))
-		}
-	}
-
-	// Multiply the initial points and compute all linear combinations thereof,
-	// recording seen values for de-duplication.
-	var points []rationalPoint
-	seen := make(valuesSeen[rationalPoint])
-	for _, c := range initialPoints {
-		if seen.contains(c) || seen.contains(E.Invert(c)) {
-			continue
-		}
-		var newPoints []rationalPoint
-		Q := inf
-		for i := 0; i < *maxCoeff; i++ {
-			Q = E.Add(Q, c)
-			NQ := E.Invert(Q)
-			newPoints = append(newPoints, Q, NQ)
-			seen.add(Q)
-			seen.add(NQ)
-			for _, p := range points {
-				pQ, pNQ := E.Add(p, Q), E.Add(p, NQ)
-				newPoints = append(newPoints, pQ, pNQ)
-				seen.add(pQ)
-				seen.add(pNQ)
-			}
-		}
-		points = append(points, newPoints...)
-	}
-
-	// Convert points to Pythagorean triples, again with de-duplication.
-	// Multiple points can correspond to the same triple.
-	triplesSeen := make(valuesSeen[rationalTriple])
-	var uniqueTriples []rationalTriple
-	for _, P := range points {
-		t := P.ToTriple(nSquareFree)
-		t.Scale(nSquaredFactor)
-		if !triplesSeen.contains(t) {
-			uniqueTriples = append(uniqueTriples, t)
-		}
-		triplesSeen.add(t)
 	}
 
 	if *maxDigits != 0 {
 		var filteredTriples = make([]rationalTriple, 0, len(uniqueTriples))
 		for _, t := range uniqueTriples {
-			if len(t.C.Denom().String()) > (*maxDigits) {
+			if (*maxDigits) > 0 && len(t.C.Denom().String()) > (*maxDigits) {
+				continue
+			}
+			if (*maxDigits) == -1 && (!t.C.Denom().IsInt64() || t.C.Denom().Int64() != 1) {
 				continue
 			}
 			filteredTriples = append(filteredTriples, t)
@@ -98,8 +53,9 @@ func main() {
 		b.WriteString(t.String())
 		b.WriteByte('\n')
 	}
+
 	if *outputFile != "" {
-		err = os.WriteFile(*outputFile, b.Bytes(), 0666)
+		err := os.WriteFile(*outputFile, b.Bytes(), 0666)
 		if err != nil {
 			panic(err)
 		}
@@ -119,7 +75,84 @@ func (ps valuesSeen[T]) contains(p T) bool {
 	return ok
 }
 
-func runInitialSearch(n int64, timeout time.Duration) []rationalPoint {
+func findRationalTrianglesOfArea(n int, timeout time.Duration, maxCoeff int) []rationalTriple {
+	nSquareFree, nSquaredFactor := math.GetSquarefree(n)
+	fmt.Printf("Finding rational Pythagorean triangles with area %d (square-free part %d)\n", n, nSquareFree)
+
+	E := curve.WeierstrassCurve{A: int64(-nSquareFree * nSquareFree), B: 0}
+
+	initialPoints := runInitialSearch(int64(nSquareFree), timeout)
+	if len(initialPoints) == 0 {
+		return nil
+	}
+
+	for _, p := range initialPoints {
+		if !E.Contains(p) {
+			panic(fmt.Sprintf("fatal: initial point %v is not on curve %v", p, E))
+		}
+	}
+
+	points := multiplyAndDeduplicatePoints(E, initialPoints, maxCoeff)
+
+	for _, p := range points {
+		if p.IsTwoTorsion() {
+			continue
+		}
+		if !E.Contains(p) {
+			panic(fmt.Sprintf("fatal: result point %v is not on curve %v", p, E))
+		}
+	}
+
+	// Convert points to Pythagorean triples, again with de-duplication.
+	// Multiple points can correspond to the same triple.
+	triplesSeen := make(valuesSeen[rationalTriple])
+	var uniqueTriples []rationalTriple
+	for _, P := range points {
+		if P.IsTwoTorsion() {
+			continue
+		}
+		t := TripleFromPoint(P, nSquareFree)
+		t.Scale(nSquaredFactor)
+		if !triplesSeen.contains(t) {
+			uniqueTriples = append(uniqueTriples, t)
+		}
+		triplesSeen.add(t)
+	}
+
+	return uniqueTriples
+}
+
+func multiplyAndDeduplicatePoints(E curve.WeierstrassCurve, initialPoints []curve.RationalPoint, maxCoeff int) []curve.RationalPoint {
+	// Multiply the initial points and compute all linear combinations thereof,
+	// recording seen values for de-duplication.
+	var points []curve.RationalPoint
+	seen := make(valuesSeen[curve.RationalPoint])
+	for _, c := range initialPoints {
+		if seen.contains(c) || seen.contains(E.Invert(c)) {
+			continue
+		}
+		var newPoints []curve.RationalPoint
+		Q := curve.Inf
+		for i := 0; i < maxCoeff; i++ {
+			Q = E.Add(Q, c)
+			NQ := E.Invert(Q)
+			newPoints = append(newPoints, Q, NQ)
+			seen.add(Q)
+			seen.add(NQ)
+			for _, p := range points {
+				pQ, pNQ := E.Add(p, Q), E.Add(p, NQ)
+				newPoints = append(newPoints, pQ, pNQ)
+				seen.add(pQ)
+				seen.add(pNQ)
+			}
+		}
+		points = append(points, newPoints...)
+	}
+
+	return points
+}
+
+func runInitialSearch(n int64, timeout time.Duration) []curve.RationalPoint {
 	returnFirstPoint := timeout == 0
 
 	var searchCtx context.Context
@@ -132,13 +165,15 @@ func runInitialSearch(n int64, timeout time.Duration) []rationalPoint {
 	}
 	defer endSearch()
 
-	initialPointsCh := make(chan rationalPoint)
+	initialPointsCh := make(chan curve.RationalPoint)
 	defer close(initialPointsCh)
+	descentPointsCh := make(chan curve.RationalPoint)
+	defer close(descentPointsCh)
 	tunnellResultCh := make(chan tunnell.TunnellResult)
 	defer close(tunnellResultCh)
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(3)
 	wgDone := make(chan struct{})
 	go func() {
 		wg.Wait()
@@ -149,11 +184,15 @@ func runInitialSearch(n int64, timeout time.Duration) []rationalPoint {
 		wg.Done()
 	}()
 	go func() {
-		tunnell.RunTunnellCheck(context.TODO(), n, tunnellResultCh)
+		tunnell.RunTunnellCheck(searchCtx, n, tunnellResultCh)
+		wg.Done()
+	}()
+	go func() {
+		descent.SearchForInitialPoints(searchCtx, n, descentPointsCh)
 		wg.Done()
 	}()
 
-	var initialPoints []rationalPoint
+	var initialPoints []curve.RationalPoint
 outer:
 	for {
 		select {
@@ -161,13 +200,20 @@ outer:
 			initialPoints = append(initialPoints, point)
 			if returnFirstPoint {
 				endSearch()
+				fmt.Println("Brute force search found initial point")
+			}
+		case point := <-descentPointsCh:
+			initialPoints = append(initialPoints, point)
+			if returnFirstPoint {
+				endSearch()
+				fmt.Println("Descent found initial point")
 			}
 		case tunnellResult := <-tunnellResultCh:
 			if tunnellResult.Valid {
 				fmt.Println("Tunnell's criterion passed, expect some triangles")
 			} else {
-				fmt.Printf("Tunnell's criterion failed (counts %d, %d), ending search\n", tunnellResult.AC, tunnellResult.BD)
 				endSearch()
+				fmt.Printf("Tunnell's criterion failed (counts %d, %d), ending search\n", tunnellResult.AC, tunnellResult.BD)
 			}
 		case <-wgDone:
 			break outer

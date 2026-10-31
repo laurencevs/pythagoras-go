@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/laurencevs/pythagoras-go/curve"
 	"github.com/laurencevs/pythagoras-go/math"
 )
 
@@ -23,25 +24,32 @@ func (t rationalTriple) Scale(factor int) {
 	t.C.Mul(t.C, factorRat)
 }
 
-func (t rationalTriple) ToPoint(n int64) rationalPoint {
-	p := rationalPoint{x: new(big.Rat), y: new(big.Rat)}
-	p.x.Add(t.A, t.C).Mul(p.x, t.A).Quo(p.x, twoRat)
-	p.y.Set(p.x)
-	p.y.Mul(p.y, t.A)
+var twoRat = big.NewRat(2, 1)
+
+func (t rationalTriple) ToPoint(n int64) curve.RationalPoint {
+	p := curve.RationalPoint{X: new(big.Rat), Y: new(big.Rat)}
+	p.X.Add(t.A, t.C).Mul(p.X, t.A).Quo(p.X, twoRat)
+	p.Y.Set(p.X)
+	p.Y.Mul(p.Y, t.A)
 	return p
 }
 
-func (p rationalPoint) ToTriple(n int) rationalTriple {
+func TripleFromPoint(p curve.RationalPoint, n int) rationalTriple {
 	var a, b, c big.Rat
-	a.Mul(p.x, p.x)
+	a.Mul(p.X, p.X)
 	c.Set(&a)
 	n2 := new(big.Rat).SetInt64(int64(n * n))
-	a.Sub(&a, n2).Quo(&a, p.y)
-	c.Add(&c, n2).Quo(&c, p.y)
-	b.SetFrac64(int64(2*n), 1).Mul(&b, p.x).Quo(&b, p.y)
+	a.Sub(&a, n2).Quo(&a, p.Y)
+	c.Add(&c, n2).Quo(&c, p.Y)
+	b.SetFrac64(int64(2*n), 1).Mul(&b, p.X).Quo(&b, p.Y)
+	a.Abs(&a)
+	b.Abs(&b)
+	if a.Cmp(&b) == 1 {
+		a, b = b, a
+	}
 	return rationalTriple{
-		A: a.Abs(&a),
-		B: b.Abs(&b),
+		A: &a,
+		B: &b,
 		C: c.Abs(&c),
 	}
 }
@@ -64,7 +72,7 @@ type primitiveTriple struct {
 	sqrt *big.Int
 }
 
-func (t primitiveTriple) ToPoint(n int64) rationalPoint {
+func (t primitiveTriple) ToPoint(n int64) curve.RationalPoint {
 	var a, b, c big.Rat
 
 	nDivSqrt := new(big.Rat)
@@ -87,7 +95,7 @@ const maxInt = int64((^uint64(0)) >> 1)
 
 var sqrtMaxInt, _ = math.IntSqrt(uint64(maxInt))
 
-func initialPointSearch(ctx context.Context, n int64, out chan<- rationalPoint) {
+func initialPointSearch(ctx context.Context, n int64, out chan<- curve.RationalPoint) {
 	limUint := math.IntFloorSqrt(math.IntFloorSqrt(uint64(maxInt / n)))
 	lim := int64(limUint)
 
