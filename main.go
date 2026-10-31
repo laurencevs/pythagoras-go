@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/laurencevs/pythagoras-go/curve"
+	"github.com/laurencevs/pythagoras-go/internal/sync"
 	"github.com/laurencevs/pythagoras-go/math"
 	"github.com/laurencevs/pythagoras-go/pythagoras"
 	"github.com/laurencevs/pythagoras-go/search/descent"
@@ -174,25 +174,13 @@ func runInitialSearch(n int64, timeout time.Duration) []curve.RationalPoint {
 	tunnellResultCh := make(chan tunnell.TunnellResult)
 	defer close(tunnellResultCh)
 
-	var wg sync.WaitGroup
-	wg.Add(3)
-	wgDone := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(wgDone)
-	}()
-	go func() {
-		tunnell.RunTunnellCheck(searchCtx, n, tunnellResultCh)
-		wg.Done()
-	}()
-	go func() {
-		euclid.SearchForInitialPoints(searchCtx, n, initialPointsCh)
-		wg.Done()
-	}()
-	go func() {
-		descent.SearchForInitialPoints(searchCtx, n, descentPointsCh)
-		wg.Done()
-	}()
+	wg := new(sync.WaitGroup)
+	wg.Add(
+		func() { tunnell.RunTunnellCheck(searchCtx, n, tunnellResultCh) },
+		func() { euclid.SearchForInitialPoints(searchCtx, n, initialPointsCh) },
+		func() { descent.SearchForInitialPoints(searchCtx, n, descentPointsCh) },
+	)
+	wgDone := wg.Go()
 
 	var initialPoints []curve.RationalPoint
 outer:

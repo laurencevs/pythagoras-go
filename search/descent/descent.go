@@ -5,9 +5,9 @@ import (
 	"maps"
 	"math/big"
 	"slices"
-	"sync"
 
 	"github.com/laurencevs/pythagoras-go/curve"
+	"github.com/laurencevs/pythagoras-go/internal/sync"
 	"github.com/laurencevs/pythagoras-go/math"
 )
 
@@ -24,36 +24,29 @@ func SearchForInitialPoints(ctx context.Context, n int64, out chan<- curve.Ratio
 	// for candidateGenerators:      solve w^2 = g u^4 - (n^2 / g) v^4
 	// for isogCandidateGenerators:  solve w^2 = g u^4 + (4 n^2 / g) v^4
 
-	var wg sync.WaitGroup
-	wgDone := make(chan struct{})
-
+	wg := new(sync.WaitGroup)
 	resCh := make(chan curve.RationalPoint)
-	wg.Add(len(candidateGenerators) + len(isogCandidateGenerators))
 
 	for _, g := range candidateGenerators {
-		go func() {
+		wg.Add(func() {
 			res := solveQuarticBruteForce(ctx, g, -n*n/g)
 			q := res.ToRationalPoint()
 			if !q.IsTwoTorsion() {
 				resCh <- q
 			}
-			wg.Done()
-		}()
+		})
 	}
 	for _, g := range isogCandidateGenerators {
-		go func() {
+		wg.Add(func() {
 			res := solveQuarticBruteForce(ctx, g, 4*n*n/g)
 			q := res.ToRationalPoint()
 			if !q.IsTwoTorsion() {
 				resCh <- dualIsogeny(q, n)
 			}
-			wg.Done()
-		}()
+		})
 	}
-	go func() {
-		wg.Wait()
-		close(wgDone)
-	}()
+	wgDone := wg.Go()
+
 	for {
 		select {
 		case <-wgDone:
@@ -66,15 +59,15 @@ func SearchForInitialPoints(ctx context.Context, n int64, out chan<- curve.Ratio
 
 type descentResult struct {
 	U, V, W int64
-	G       int64
+	A, B    int64
 }
 
 func (dr descentResult) ToRationalPoint() curve.RationalPoint {
 	if dr.V == 0 {
 		return curve.Inf
 	}
-	x := big.NewRat(dr.G*dr.U*dr.U, dr.V*dr.V)
-	y := big.NewRat(abs(dr.G)*dr.U*dr.W, dr.V*dr.V*dr.V)
+	x := big.NewRat(dr.A*dr.U*dr.U, dr.V*dr.V)
+	y := big.NewRat(abs(dr.A)*dr.U*dr.W, dr.V*dr.V*dr.V)
 	return curve.RationalPoint{X: x, Y: y}
 }
 
@@ -102,7 +95,7 @@ func abs(n int64) int64 {
 	return n
 }
 
-// search for solutions to w^2 = a u^4 + b v^4, and post them to out
+// search for solutions to w^2 = a u^4 + b v^4
 func solveQuarticBruteForce(ctx context.Context, a, b int64) descentResult {
 	// avoid overflow
 	lim := int64(math.IntFloorSqrt(math.IntFloorSqrt(uint64(int64Max / (2 * max(abs(a), abs(b)))))))
@@ -132,7 +125,7 @@ func solveQuarticBruteForce(ctx context.Context, a, b int64) descentResult {
 			}
 
 			return descentResult{
-				U: u, V: v, W: int64(w), G: a,
+				U: u, V: v, W: int64(w), A: a, B: b,
 			}
 		}
 	}
