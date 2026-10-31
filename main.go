@@ -11,8 +11,10 @@ import (
 	"time"
 
 	"github.com/laurencevs/pythagoras-go/curve"
-	"github.com/laurencevs/pythagoras-go/descent"
 	"github.com/laurencevs/pythagoras-go/math"
+	"github.com/laurencevs/pythagoras-go/pythagoras"
+	"github.com/laurencevs/pythagoras-go/search/descent"
+	"github.com/laurencevs/pythagoras-go/search/euclid"
 	"github.com/laurencevs/pythagoras-go/tunnell"
 )
 
@@ -35,7 +37,7 @@ func main() {
 	}
 
 	if *maxDigits != 0 {
-		var filteredTriples = make([]rationalTriple, 0, len(uniqueTriples))
+		var filteredTriples = make([]pythagoras.RationalTriple, 0, len(uniqueTriples))
 		for _, t := range uniqueTriples {
 			if (*maxDigits) > 0 && len(t.C.Denom().String()) > (*maxDigits) {
 				continue
@@ -75,7 +77,7 @@ func (ps valuesSeen[T]) contains(p T) bool {
 	return ok
 }
 
-func findRationalTrianglesOfArea(n int, timeout time.Duration, maxCoeff int) []rationalTriple {
+func findRationalTrianglesOfArea(n int, timeout time.Duration, maxCoeff int) []pythagoras.RationalTriple {
 	nSquareFree, nSquaredFactor := math.GetSquarefree(n)
 	fmt.Printf("Finding rational Pythagorean triangles with area %d (square-free part %d)\n", n, nSquareFree)
 
@@ -105,13 +107,13 @@ func findRationalTrianglesOfArea(n int, timeout time.Duration, maxCoeff int) []r
 
 	// Convert points to Pythagorean triples, again with de-duplication.
 	// Multiple points can correspond to the same triple.
-	triplesSeen := make(valuesSeen[rationalTriple])
-	var uniqueTriples []rationalTriple
+	triplesSeen := make(valuesSeen[pythagoras.RationalTriple])
+	var uniqueTriples []pythagoras.RationalTriple
 	for _, P := range points {
 		if P.IsTwoTorsion() {
 			continue
 		}
-		t := TripleFromPoint(P, nSquareFree)
+		t := pythagoras.TripleFromPoint(P, nSquareFree)
 		t.Scale(nSquaredFactor)
 		if !triplesSeen.contains(t) {
 			uniqueTriples = append(uniqueTriples, t)
@@ -180,11 +182,11 @@ func runInitialSearch(n int64, timeout time.Duration) []curve.RationalPoint {
 		close(wgDone)
 	}()
 	go func() {
-		initialPointSearch(searchCtx, n, initialPointsCh)
+		tunnell.RunTunnellCheck(searchCtx, n, tunnellResultCh)
 		wg.Done()
 	}()
 	go func() {
-		tunnell.RunTunnellCheck(searchCtx, n, tunnellResultCh)
+		euclid.SearchForInitialPoints(searchCtx, n, initialPointsCh)
 		wg.Done()
 	}()
 	go func() {

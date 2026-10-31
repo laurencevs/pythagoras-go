@@ -1,6 +1,6 @@
-package main
+package math
 
-func gcd[T ~int | ~int64](a, b T) T {
+func GCD[T ~int | ~int64](a, b T) T {
 	if abs(a) < abs(b) {
 		a, b = b, a
 	}
