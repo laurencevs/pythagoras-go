@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/laurencevs/pythagoras-go/curve"
+	"github.com/laurencevs/pythagoras-go/internal/set"
 	"github.com/laurencevs/pythagoras-go/internal/sync"
 	"github.com/laurencevs/pythagoras-go/math"
 	"github.com/laurencevs/pythagoras-go/pythagoras"
@@ -66,15 +67,14 @@ func main() {
 	}
 }
 
-type valuesSeen[T fmt.Stringer] map[string]struct{}
+type valuesSeen[T fmt.Stringer] set.Set[string]
 
-func (ps valuesSeen[T]) add(p T) {
-	ps[p.String()] = struct{}{}
+func (vs valuesSeen[T]) add(p T) {
+	set.Set[string](vs).Add(p.String())
 }
 
-func (ps valuesSeen[T]) contains(p T) bool {
-	_, ok := ps[p.String()]
-	return ok
+func (vs valuesSeen[T]) contains(p T) bool {
+	return set.Set[string](vs).Contains(p.String())
 }
 
 func findRationalTrianglesOfArea(n int, timeout time.Duration, maxCoeff int) []pythagoras.RationalTriple {

@@ -2,23 +2,23 @@ package descent
 
 import (
 	"context"
-	"maps"
 	"math/big"
 	"slices"
 
 	"github.com/laurencevs/pythagoras-go/curve"
+	"github.com/laurencevs/pythagoras-go/internal/set"
 	"github.com/laurencevs/pythagoras-go/internal/sync"
 	"github.com/laurencevs/pythagoras-go/math"
 )
 
 func SearchForInitialPoints(ctx context.Context, n int64, out chan<- curve.RationalPoint) {
 	minusNSquaredBases := math.GetPrimeFactors(n)
-	minusNSquaredBases[-1] = struct{}{}
+	minusNSquaredBases.Add(-1)
 	candidateGenerators := getPossibleGenerators(minusNSquaredBases)
 
-	fourNSquaredBases := maps.Clone(minusNSquaredBases)
-	delete(fourNSquaredBases, -1)
-	fourNSquaredBases[2] = struct{}{}
+	fourNSquaredBases := minusNSquaredBases.Clone()
+	fourNSquaredBases.Remove(-1)
+	fourNSquaredBases.Add(2)
 	isogCandidateGenerators := getPossibleGenerators(fourNSquaredBases)
 
 	// for candidateGenerators:      solve w^2 = g u^4 - (n^2 / g) v^4
@@ -100,6 +100,7 @@ func solveQuarticBruteForce(ctx context.Context, a, b int64) descentResult {
 	// avoid overflow
 	lim := int64(math.IntFloorSqrt(math.IntFloorSqrt(uint64(int64Max / (2 * max(abs(a), abs(b)))))))
 
+uLoop:
 	for u := int64(0); u < lim; u++ {
 		select {
 		case <-ctx.Done():
@@ -111,12 +112,13 @@ func solveQuarticBruteForce(ctx context.Context, a, b int64) descentResult {
 		if u == 0 {
 			vStart = 1
 		}
+
 		for v := int64(vStart); v < lim; v++ {
 			w2 := a*u*u*u*u + b*v*v*v*v
 			if w2 < 0 {
-				continue
-			}
-			if w2 == 0 {
+				if b < 0 {
+					continue uLoop
+				}
 				continue
 			}
 			w, ok := math.IntSqrt(uint64(w2))
@@ -132,7 +134,7 @@ func solveQuarticBruteForce(ctx context.Context, a, b int64) descentResult {
 	return descentResult{}
 }
 
-func getPossibleGenerators(factors map[int64]struct{}) []int64 {
+func getPossibleGenerators(factors set.Set[int64]) []int64 {
 	res := make([]int64, 0, 1<<len(factors))
 	res = append(res, 1)
 

@@ -9,7 +9,7 @@ import (
 
 func Test_ListGenerators(t *testing.T) {
 	minusNSquaredBases := math.GetPrimeFactors(210)
-	minusNSquaredBases[-1] = struct{}{}
+	minusNSquaredBases.Add(-1)
 	minusNSquaredGenerators := getPossibleGenerators(minusNSquaredBases)
 	slices.Sort(minusNSquaredGenerators)
 

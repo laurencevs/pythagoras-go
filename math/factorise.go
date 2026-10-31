@@ -1,12 +1,14 @@
 package math
 
+import "github.com/laurencevs/pythagoras-go/internal/set"
+
 // TODO: these are horribly inefficient proofs-of-concept
 
-func ListPrimesUpTo(n int64) map[int64]struct{} {
+func ListPrimesUpTo(n int64) set.Set[int64] {
 	if n < 2 {
-		return map[int64]struct{}{}
+		return set.New[int64]()
 	}
-	primes := map[int64]struct{}{2: {}}
+	primes := set.New[int64](2)
 outer:
 	for i := int64(3); i <= n; i += 2 {
 		for p := range primes {
@@ -14,17 +16,17 @@ outer:
 				continue outer
 			}
 		}
-		primes[i] = struct{}{}
+		primes.Add(i)
 	}
 	return primes
 }
 
-func GetPrimeFactors(n int64) map[int64]struct{} {
+func GetPrimeFactors(n int64) set.Set[int64] {
 	primes := ListPrimesUpTo(n)
-	factors := make(map[int64]struct{})
+	factors := make(set.Set[int64])
 	for p := range primes {
 		if n%p == 0 {
-			factors[p] = struct{}{}
+			factors.Add(p)
 		}
 	}
 	return factors
