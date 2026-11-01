@@ -1,6 +1,9 @@
 package tunnell
 
-import "testing"
+import (
+	"context"
+	"testing"
+)
 
 type knownResult struct {
 	n     int64
@@ -36,7 +39,7 @@ var knownResults = []knownResult{
 
 func TestTunnellValid(t *testing.T) {
 	for _, exp := range knownResults {
-		res := CheckTunnell(exp.n)
+		res, _ := CheckTunnell(context.Background(), exp.n)
 		if res.Valid != exp.valid {
 			t.Errorf("got %v, expected %v for n = %d", res.Valid, exp.valid, exp.n)
 		}

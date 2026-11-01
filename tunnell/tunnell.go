@@ -13,42 +13,49 @@ type TunnellResult struct {
 }
 
 // n must be positive and square-free
-func RunTunnellCheck(_ context.Context, n int64, out chan<- TunnellResult) {
-	// TODO: use context to exit early
-	out <- CheckTunnell(n)
+func RunTunnellCheck(ctx context.Context, n int64, out chan<- TunnellResult) {
+	res, ok := CheckTunnell(ctx, n)
+	if !ok {
+		return
+	}
+	select {
+	case out <- res:
+	case <-ctx.Done():
+	}
 }
 
 // n must be positive and square-free
-func CheckTunnell(n int64) TunnellResult {
-	if n%2 == 0 {
-		return checkTunnellEven(n)
+func CheckTunnell(ctx context.Context, n int64) (TunnellResult, bool) {
+	var ac, bd int
+	if n%2 == 1 {
+		a := computeTunnellCount(ctx, n, 1, 2, 32)
+		b := computeTunnellCount(ctx, n, 1, 2, 8)
+		ac, bd = a, b
+	} else {
+		c := computeTunnellCount(ctx, n, 2, 8, 64)
+		d := computeTunnellCount(ctx, n, 2, 8, 16)
+		ac, bd = c, d
 	}
-	return checkTunnellOdd(n)
-}
 
-func checkTunnellEven(n int64) TunnellResult {
-	c := computeTunnellCount(n, 2, 8, 64)
-	d := computeTunnellCount(n, 2, 8, 16)
+	if err := ctx.Err(); err != nil {
+		return TunnellResult{}, false
+	}
+
 	return TunnellResult{
-		Valid: 2*c == d,
-		AC:    c,
-		BD:    d,
-	}
+		Valid: 2*ac == bd,
+		AC:    ac,
+		BD:    bd,
+	}, true
 }
 
-func checkTunnellOdd(n int64) TunnellResult {
-	a := computeTunnellCount(n, 1, 2, 32)
-	b := computeTunnellCount(n, 1, 2, 8)
-	return TunnellResult{
-		Valid: 2*a == b,
-		AC:    a,
-		BD:    b,
-	}
-}
-
-func computeTunnellCount(n, xc, yc, zc int64) int {
+func computeTunnellCount(ctx context.Context, n, xc, yc, zc int64) int {
 	total := 0
 	for x := int64(0); xc*x*x <= n; x++ {
+		select {
+		case <-ctx.Done():
+			return 0
+		default:
+		}
 		xContrib := xc * x * x
 		for y := int64(0); yc*y*y <= n-xContrib; y++ {
 			yContrib := yc * y * y

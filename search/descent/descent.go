@@ -29,7 +29,10 @@ func SearchForInitialPoints(ctx context.Context, n int64, out chan<- curve.Ratio
 
 	for _, g := range candidateGenerators {
 		wg.Add(func() {
-			res := solveQuarticBruteForce(ctx, g, -n*n/g)
+			res, ok := solveQuarticBruteForce(ctx, g, -n*n/g)
+			if !ok {
+				return
+			}
 			q := res.ToRationalPoint()
 			if !q.IsTwoTorsion() {
 				resCh <- q
@@ -38,7 +41,10 @@ func SearchForInitialPoints(ctx context.Context, n int64, out chan<- curve.Ratio
 	}
 	for _, g := range isogCandidateGenerators {
 		wg.Add(func() {
-			res := solveQuarticBruteForce(ctx, g, 4*n*n/g)
+			res, ok := solveQuarticBruteForce(ctx, g, 4*n*n/g)
+			if !ok {
+				return
+			}
 			q := res.ToRationalPoint()
 			if !q.IsTwoTorsion() {
 				resCh <- dualIsogeny(q, n)
@@ -52,7 +58,10 @@ func SearchForInitialPoints(ctx context.Context, n int64, out chan<- curve.Ratio
 		case <-wgDone:
 			return
 		case res := <-resCh:
-			out <- res
+			select {
+			case out <- res:
+			case <-ctx.Done():
+			}
 		}
 	}
 }
@@ -96,7 +105,7 @@ func abs(n int64) int64 {
 }
 
 // search for solutions to w^2 = a u^4 + b v^4
-func solveQuarticBruteForce(ctx context.Context, a, b int64) descentResult {
+func solveQuarticBruteForce(ctx context.Context, a, b int64) (descentResult, bool) {
 	// avoid overflow
 	lim := int64(math.IntFloorSqrt(math.IntFloorSqrt(uint64(int64Max / (2 * max(abs(a), abs(b)))))))
 
@@ -104,7 +113,7 @@ uLoop:
 	for u := int64(0); u < lim; u++ {
 		select {
 		case <-ctx.Done():
-			return descentResult{}
+			return descentResult{}, false
 		default:
 		}
 
@@ -128,10 +137,10 @@ uLoop:
 
 			return descentResult{
 				U: u, V: v, W: int64(w), A: a, B: b,
-			}
+			}, true
 		}
 	}
-	return descentResult{}
+	return descentResult{}, false
 }
 
 func getPossibleGenerators(factors set.Set[int64]) []int64 {
