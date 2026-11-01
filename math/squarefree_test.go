@@ -3,7 +3,7 @@ package math
 import "testing"
 
 func Test_GetSquarefree(t *testing.T) {
-	samples := []struct{ n, squaredPart, squareFreePart int }{
+	samples := []struct{ n, squaredPart, squareFreePart uint }{
 		{1, 1, 1},
 		{2, 1, 2},
 		{3, 1, 3},

@@ -89,4 +89,8 @@ func Test_GetPrimeFactors(t *testing.T) {
 	if !f1254x2x11.Equals(set.New[int64](2, 3, 11, 19)) {
 		t.Errorf("unexpected factors of 1254 * 2 * 11: %v", f1254x2x11)
 	}
+	f1_111_111_111 := GetPrimeFactors(1_111_111_111)
+	if !f1_111_111_111.Equals(set.New[int64](11, 41, 271, 9091)) {
+		t.Errorf("unexpected factors of 1,111,111,111: %v", f1_111_111_111)
+	}
 }

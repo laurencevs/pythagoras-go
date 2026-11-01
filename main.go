@@ -23,6 +23,7 @@ var timeoutDuration = flag.Duration("timeout", 0, "The timeout length for the in
 var maxCoeff = flag.Int("max-coeff", 5, "The maximum coefficient by which to multiply each point.")
 var maxDigits = flag.Int("max-digits", 0, "The maximum number of digits in the denominator of the hypotenuse. Triangles with larger hypotenuse denominators will not be outputted.")
 var outputFile = flag.String("output", "", "The filename for output. By default, the program will print to stdout.")
+var verbose = flag.Bool("verbose", false, "Whether to include verbose output.")
 
 func main() {
 	flag.Parse()
@@ -78,8 +79,10 @@ func (vs valuesSeen[T]) contains(p T) bool {
 }
 
 func findRationalTrianglesOfArea(n int, timeout time.Duration, maxCoeff int) []pythagoras.RationalTriple {
-	nSquareFree, nSquaredFactor := math.GetSquarefree(n)
-	fmt.Printf("Finding rational Pythagorean triangles with area %d (square-free part %d)\n", n, nSquareFree)
+	nSquareFree, nSquaredFactor := math.GetSquarefree(uint(n))
+	if *verbose {
+		fmt.Printf("Finding rational Pythagorean triangles with area %d (square-free part %d)\n", n, nSquareFree)
+	}
 
 	E := curve.WeierstrassCurve{A: int64(-nSquareFree * nSquareFree), B: 0}
 
@@ -113,8 +116,8 @@ func findRationalTrianglesOfArea(n int, timeout time.Duration, maxCoeff int) []p
 		if P.IsTwoTorsion() {
 			continue
 		}
-		t := pythagoras.TripleFromPoint(P, nSquareFree)
-		t.Scale(nSquaredFactor)
+		t := pythagoras.TripleFromPoint(P, int(nSquareFree))
+		t.Scale(int(nSquaredFactor))
 		if !triplesSeen.contains(t) {
 			uniqueTriples = append(uniqueTriples, t)
 		}
@@ -167,8 +170,8 @@ func runInitialSearch(n int64, timeout time.Duration) []curve.RationalPoint {
 	}
 	defer endSearch()
 
-	initialPointsCh := make(chan curve.RationalPoint)
-	defer close(initialPointsCh)
+	euclidPointsCh := make(chan curve.RationalPoint)
+	defer close(euclidPointsCh)
 	descentPointsCh := make(chan curve.RationalPoint)
 	defer close(descentPointsCh)
 	tunnellResultCh := make(chan tunnell.TunnellResult)
@@ -177,7 +180,7 @@ func runInitialSearch(n int64, timeout time.Duration) []curve.RationalPoint {
 	wg := new(sync.WaitGroup)
 	wg.Add(
 		func() { tunnell.RunTunnellCheck(searchCtx, n, tunnellResultCh) },
-		func() { euclid.SearchForInitialPoints(searchCtx, n, initialPointsCh) },
+		func() { euclid.SearchForInitialPoints(searchCtx, n, euclidPointsCh) },
 		func() { descent.SearchForInitialPoints(searchCtx, n, descentPointsCh) },
 	)
 	wgDone := wg.Go()
@@ -186,24 +189,30 @@ func runInitialSearch(n int64, timeout time.Duration) []curve.RationalPoint {
 outer:
 	for {
 		select {
-		case point := <-initialPointsCh:
+		case tunnellResult := <-tunnellResultCh:
+			if tunnellResult.Valid {
+				if *verbose {
+					fmt.Println("Tunnell's criterion passed, expect some triangles")
+				}
+			} else {
+				endSearch()
+				fmt.Printf("Tunnell's criterion failed (2 * %d != %d), ending search\n", tunnellResult.AC, tunnellResult.BD)
+			}
+		case point := <-euclidPointsCh:
 			initialPoints = append(initialPoints, point)
 			if returnFirstPoint {
 				endSearch()
-				fmt.Println("Brute force search found initial point")
+			}
+			if *verbose {
+				fmt.Println("Brute force search found initial point", point)
 			}
 		case point := <-descentPointsCh:
 			initialPoints = append(initialPoints, point)
 			if returnFirstPoint {
 				endSearch()
-				fmt.Println("Descent found initial point")
 			}
-		case tunnellResult := <-tunnellResultCh:
-			if tunnellResult.Valid {
-				fmt.Println("Tunnell's criterion passed, expect some triangles")
-			} else {
-				endSearch()
-				fmt.Printf("Tunnell's criterion failed (counts %d, %d), ending search\n", tunnellResult.AC, tunnellResult.BD)
+			if *verbose {
+				fmt.Println("Descent found initial point", point)
 			}
 		case <-wgDone:
 			break outer

@@ -1,6 +1,6 @@
 package math
 
-func GCD[T ~int | ~int64](a, b T) T {
+func GCD[T ~int | ~uint | ~int64](a, b T) T {
 	if abs(a) < abs(b) {
 		a, b = b, a
 	}
@@ -13,7 +13,7 @@ func GCD[T ~int | ~int64](a, b T) T {
 	return a
 }
 
-func abs[T ~int | ~int64](n T) T {
+func abs[T ~int | ~uint | ~int64](n T) T {
 	if n < 0 {
 		return -n
 	}
