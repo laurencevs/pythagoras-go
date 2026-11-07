@@ -14,6 +14,13 @@ Brute force search found initial point (12, 36)
 (3122541453/2129555051, 8518220204/1040847151, 18428872963986767525/2216541307731009701)
 ```
 
+If [Tunnell's theorem](https://en.wikipedia.org/wiki/Tunnell%27s_theorem) shows that no such triangle exists, the program exits. Assuming the Birch & Swinnerton-Dyer conjecture, this means the program will terminate for all areas.
+
+```
+$ ./pythagoras-go 30001
+Tunnell's criterion failed (2 * 244 != 496), ending search
+```
+
 ### How it works
 
 The program works in two stages:
