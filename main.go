@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime/pprof"
 	"strconv"
 	"time"
 
@@ -25,8 +26,19 @@ var maxDigits = flag.Int("max-digits", 0, "The maximum number of digits in the d
 var outputFile = flag.String("output", "", "The filename for output. By default, the program will print to stdout.")
 var verbose = flag.Bool("verbose", false, "Whether to include verbose output.")
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
 func main() {
 	flag.Parse()
+
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			panic(err)
+		}
+		_ = pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 
 	n, err := strconv.Atoi(flag.Args()[0])
 	if err != nil {
