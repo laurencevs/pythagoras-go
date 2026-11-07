@@ -41,7 +41,7 @@ func TestTunnellValid(t *testing.T) {
 	for _, exp := range knownResults {
 		res, _ := CheckTunnell(context.Background(), exp.n)
 		if res.Valid != exp.valid {
-			t.Errorf("got %v, expected %v for n = %d", res.Valid, exp.valid, exp.n)
+			t.Errorf("got %v, expected %v for n = %d (full result: %v)", res.Valid, exp.valid, exp.n, res)
 		}
 	}
 }
