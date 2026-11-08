@@ -18,7 +18,7 @@ If [Tunnell's theorem](https://en.wikipedia.org/wiki/Tunnell%27s_theorem) shows 
 
 ```
 $ ./pythagoras-go 30001
-Tunnell's criterion failed (2 * 244 != 496), ending search
+Ending search: Tunnell's criterion failed (2 * 244 != 496)
 ```
 
 ### How it works

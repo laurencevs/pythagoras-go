@@ -31,6 +31,9 @@ func (p RationalPoint) IsTwoTorsion() bool {
 var Inf = RationalPoint{}
 
 func (c WeierstrassCurve) Contains(p RationalPoint) bool {
+	if p.IsInf() {
+		return true
+	}
 	lhs := new(big.Rat)
 	lhs.Mul(p.Y, p.Y)
 	axb := new(big.Rat)
@@ -41,6 +44,9 @@ func (c WeierstrassCurve) Contains(p RationalPoint) bool {
 }
 
 func (c WeierstrassCurve) Invert(p RationalPoint) RationalPoint {
+	if p.IsInf() {
+		return Inf
+	}
 	return RationalPoint{
 		X: p.X,
 		Y: new(big.Rat).Neg(p.Y),

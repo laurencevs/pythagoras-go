@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/laurencevs/pythagoras-go/curve"
+	"github.com/laurencevs/pythagoras-go/internal/set"
 )
 
 type RationalTriple struct {
@@ -15,6 +16,7 @@ func (t RationalTriple) String() string {
 	return fmt.Sprintf("(%s, %s, %s)", t.A.RatString(), t.B.RatString(), t.C.RatString())
 }
 
+// Scale the triple's values in place
 func (t RationalTriple) Scale(factor int) {
 	factorRat := big.NewRat(int64(factor), 1)
 	t.A.Mul(t.A, factorRat)
@@ -50,6 +52,38 @@ func TripleFromPoint(p curve.RationalPoint, n int) RationalTriple {
 		B: &b,
 		C: c.Abs(&c),
 	}
+}
+
+// Convert points to Pythagorean triples with de-duplication.
+// Multiple points can correspond to the same triple.
+func TriplesFromPoints(points []curve.RationalPoint, n int) []RationalTriple {
+	triplesSeen := make(set.StringerSet[RationalTriple])
+	var uniqueTriples []RationalTriple
+	for _, P := range points {
+		if P.IsTwoTorsion() {
+			continue
+		}
+		t := TripleFromPoint(P, n)
+		if !triplesSeen.Contains(t) {
+			uniqueTriples = append(uniqueTriples, t)
+		}
+		triplesSeen.Add(t)
+	}
+	return uniqueTriples
+}
+
+func FilterByMaxDigits(triples []RationalTriple, maxDigits int) []RationalTriple {
+	var filteredTriples = make([]RationalTriple, 0, len(triples))
+	for _, t := range triples {
+		if maxDigits > 0 && len(t.C.Denom().String()) > maxDigits {
+			continue
+		}
+		if maxDigits == -1 && (!t.C.Denom().IsInt64() || t.C.Denom().Int64() != 1) {
+			continue
+		}
+		filteredTriples = append(filteredTriples, t)
+	}
+	return filteredTriples
 }
 
 // Primitive Pythagorean triples (a, b, c) are represented by (u, v) where
